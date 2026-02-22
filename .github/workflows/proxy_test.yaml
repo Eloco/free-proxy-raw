@@ -1,0 +1,50 @@
+name: proxy_test_playwright
+
+on:
+  workflow_dispatch:
+    inputs:
+      httProxy:
+        description: 'ip:port'
+        required: true
+      url:
+        description: 'url to test'
+        required: false
+        default: "https://froxy.com/api/detect-ip/"
+      browserType:
+        description: 'default firefox (chromium or webkit)'
+        required: false
+        default: "firefox"
+      sleep:
+        description: 'sleep seconds'
+        required: false
+        default: "30"
+
+env:
+  url: ${{ github.event.inputs.url }}
+  proxy: http://${{ github.event.inputs.httProxy }}
+  browserType: ${{ github.event.inputs.browserType }}
+  sleep: ${{ github.event.inputs.sleep }}
+
+jobs:
+  proxy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install Playwright
+        run: |
+            python -m pip install playwright
+            npx playwright install-deps $browserType
+            python -m playwright install $browserType
+            wget https://raw.githubusercontent.com/Eloco/free-proxy-raw/main/.github/proxy_test.py -O proxy_test.py
+
+      - name: proxy test
+        run: |
+          timeout 1800 xvfb-run python proxy_test.py
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dl-html
+          path: page.html # or path/to/artifact

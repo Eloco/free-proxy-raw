@@ -1,0 +1,53 @@
+name: proxy_test_purevpn_playwright
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'url to test'
+        required: false
+        default: "https://froxy.com/api/detect-ip/"
+      browserType:
+        description: 'default firefox (chromium or webkit)'
+        required: false
+        default: "firefox"
+      sleep:
+        description: 'sleep seconds'
+        required: false
+        default: "30"
+
+env:
+  url: ${{ github.event.inputs.url }}
+  browserType: ${{ github.event.inputs.browserType }}
+  sleep: ${{ github.event.inputs.sleep }}
+
+jobs:
+  proxy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install Playwright
+        run: |
+            python -m pip install playwright
+            npx playwright install-deps $browserType
+            python -m playwright install $browserType
+            wget https://raw.githubusercontent.com/Eloco/free-proxy-raw/main/.github/proxy_test.py -O proxy_test.py
+
+      - name: purevpn
+        run: |
+          wget -O purevpn_amd64.deb 'https://s3.amazonaws.com/purevpn-dialer-assets/linux/app/purevpn_amd64.deb?utm_source=Linux%20App&utm_medium=Downloads%20Tracking&utm_campaign=Linux%20App%2064%20Bit%20Beta%20Download%20Tracking'
+          sudo dpkg -i purevpn_amd64.deb
+          wget https://raw.githubusercontent.com/Eloco/free-proxy-raw/main/.github/purevpn.sh -O purevpn.sh
+
+      - name: proxy test
+        run: |
+          bash purevpn.sh
+          timeout 1800 xvfb-run python proxy_test.py
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dl-html
+          path: page.html # or path/to/artifact

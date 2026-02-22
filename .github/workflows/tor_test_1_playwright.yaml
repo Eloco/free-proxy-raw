@@ -1,0 +1,64 @@
+name: tor_test_1_playwright
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'url to test'
+        required: false
+        default: "https://froxy.com/api/detect-ip/"
+      browserType:
+        description: 'default firefox (chromium or webkit)'
+        required: false
+        default: "firefox"
+      sleep:
+        description: 'sleep seconds'
+        required: false
+        default: "30"
+      cid:
+        description: 'CountryCode.org'
+        required: True
+        default: "86"
+
+env:
+  url: ${{ github.event.inputs.url }}
+  browserType: ${{ github.event.inputs.browserType }}
+  sleep: ${{ github.event.inputs.sleep }}
+  cid: ${{ github.event.inputs.cid }}
+
+jobs:
+  proxy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Install Playwright and ipinfo
+        run: |
+            python -m pip install playwright html2text
+            npx playwright install-deps $browserType
+            python -m playwright install $browserType
+            wget https://raw.githubusercontent.com/Eloco/free-proxy-raw/main/.github/proxy_test.py -O proxy_test.py
+            curl -Ls https://github.com/ipinfo/cli/releases/download/ipinfo-2.8.1/deb.sh | sh
+
+      - name: Build and Run TorghostNG
+        run: |
+              git clone https://github.91chi.fun/https://github.com/jermainlaforce/TorghostNG.git
+              cd TorghostNG
+              sudo python3 install.py
+              #sudo torghostng -s -id $cid
+              sudo torghostng -s
+
+      - name: check ip
+        run: |
+              ipinfo `curl -s ifconfig.me`
+
+      - name: proxy test
+        run: |
+          timeout 1800 xvfb-run python proxy_test.py
+          cat page.html | html2text
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dl-html
+          path: page.html # or path/to/artifact

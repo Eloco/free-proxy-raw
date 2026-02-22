@@ -1,0 +1,46 @@
+name: 'clean_repo'
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: 'which day ago to remove'
+        required: true
+        default: "1"
+  schedule:
+    - cron: '00 0 * * *'
+
+env:
+  day: ${{ github.event.inputs.day }}
+
+permissions: write-all
+
+jobs:
+  CleanRepo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: clean history file
+        run: |
+          d=`date -d "${day} day ago" +%s`;for file in `find ./ -not -path '*/.*' -type f ` ;do ( nd=`echo ${file} | sed 's/.*_\([0-9]*\)_.*/\1/g'`;if [ $d -gt $nd ];then echo $file;rm $file;fi);done
+      - name: Commit report and clean history
+        run: |
+            rm -rf .git
+            git config --global init.defaultBranch main
+            git config --global user.name 'github-actions[bot]'
+            git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+            git init
+            git add -A
+            git commit -m "Initial commit for new branch"
+            echo "ready pushing"
+            git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
+            echo "now pushing"
+            git push -f origin main
